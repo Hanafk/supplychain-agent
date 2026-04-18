@@ -1,7 +1,7 @@
 import uuid
 from typing import List, Dict, Any
-from retrieval.vector_store import InMemoryVectorStore, Chunk
-from llm.openai_client import OpenAIClient
+from Retrieval.vector_store import InMemoryVectorStore, Chunk
+from LLM.openai_client import OpenAIClient
 
 def chunk_text(text: str, chunk_size: int = 900, overlap: int = 150) -> List[str]:
     text = text.strip()

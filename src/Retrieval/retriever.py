@@ -1,6 +1,6 @@
 from typing import List
-from retrieval.vector_store import InMemoryVectorStore, Chunk
-from llm.openai_client import OpenAIClient
+from Retrieval.vector_store import InMemoryVectorStore, Chunk
+from LLM.openai_client import OpenAIClient
 
 class Retriever:
     def __init__(self, store: InMemoryVectorStore, openai: OpenAIClient):

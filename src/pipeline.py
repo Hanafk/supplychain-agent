@@ -1,7 +1,7 @@
 import logging
 from src.utils.logger import setup_logger
-from src.io.load_data import load_holdco, data_quality_report
-from src.agents.decision_agent import run_decision_agent, generate_decision_summary
+from src.data_io.load_data import load_holdco, data_quality_report
+from src.agents.inventory_agent import run_decision_agent, generate_decision_summary
 
 from src.agents.category_agent import run_category_agent
 
@@ -41,7 +41,7 @@ def run_pipeline(
 
     # ÉTAPE 3 — Export
     logger.info("[3/3] Export des résultats...")
-    from src.io.export_results import export_to_excel
+    from src.data_io.export_results import export_to_excel
     export_to_excel(df, kpi, quality, output_path)
 
     logger.info("=" * 50)
