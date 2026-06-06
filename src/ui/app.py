@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import json
+import io
+from datetime import datetime
 from typing import Any
 
 import pandas as pd
@@ -22,6 +23,10 @@ st.set_page_config(
 )
 
 
+# ============================================================
+# RENDER RESULT
+# ============================================================
+
 def render_result(payload: dict[str, Any]) -> None:
     if not payload.get("success", False):
         st.error(payload.get("error", "Erreur inconnue"))
@@ -39,7 +44,6 @@ def render_result(payload: dict[str, Any]) -> None:
         return
 
     if isinstance(result, dict):
-        # afficher preview si présente
         preview = result.get("preview")
         result_copy = dict(result)
 
@@ -61,10 +65,15 @@ def render_result(payload: dict[str, Any]) -> None:
     st.write(result)
 
 
+# ============================================================
+# INVENTORY PAGE
+# ============================================================
+
 def page_inventory() -> None:
     st.title("📦 Inventory Agent")
     st.write("Charge un fichier Excel pour l’analyse d’inventaire.")
 
+    # ---------- UPLOAD ----------
     uploaded_file = st.file_uploader(
         "Importer un fichier Excel",
         type=["xlsx", "xls"],
@@ -81,6 +90,79 @@ def page_inventory() -> None:
             st.error(f"Impossible de lire le fichier : {exc}")
             return
 
+    # ---------- TEMPLATE SECTION ----------
+    st.markdown("---")
+
+    # ---------- INTRO ----------
+    st.markdown(
+        """
+Download the Excel template below, fill it with your data, and upload it on this page.
+"""
+    )
+
+    # ---------- TEMPLATE COLUMNS ----------
+    TEMPLATE_COLUMNS = [
+        "item_code",
+        "item_description",
+        "SOH",
+        "consumption",
+        "unit_price",
+        "request_qty",
+        "open_qty",
+        "contract_qty",
+        "received_qty",
+        "expired_qty",
+        "region",
+        "category",
+        "sub_category",
+    ]
+
+    template_df = pd.DataFrame(columns=TEMPLATE_COLUMNS)
+
+    # ---------- EXPORT FUNCTION ----------
+    def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "TEMPLATE") -> bytes:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
+        return output.getvalue()
+
+    # ---------- DOWNLOAD BUTTON ----------
+    xls_bytes = df_to_excel_bytes(template_df)
+
+    st.download_button(
+        label="📥 Download Excel Template",
+        data=xls_bytes,
+        file_name=f"tool_holdco_template_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+    # ---------- FIELD DESCRIPTION ----------
+    st.subheader("Field Description")
+
+    st.markdown(
+        """
+### 🔹 Required fields
+- **item_code** — Unique identifier
+- **item_description** — Item name / description
+- **SOH** — Stock on hand (units)
+- **consumption** — Monthly consumption (units/month)
+- **unit_price** — Price per unit (SAR)
+- **request_qty** — Quantity initially requested by the cluster (units)
+
+### 🔹 Optional fields
+- **open_qty** — Open PO quantity
+- **contract_qty** — Contracted quantity
+- **received_qty** — Received quantity
+- **expired_qty** — Expired units
+- **region** — Region / cluster
+- **category** — Item category
+- **sub_category** — Sub category
+"""
+    )
+
+    # ---------- RUN BUTTON ----------
+    st.markdown("---")
+
     if st.button("Lancer Inventory Agent", use_container_width=True):
         if uploaded_file is None:
             st.warning("Ajoute un fichier Excel.")
@@ -92,129 +174,64 @@ def page_inventory() -> None:
         render_result(payload)
 
 
+# ============================================================
+# OTHER PAGES
+# ============================================================
+
 def page_category() -> None:
     st.title("🏷️ Category Agent")
     st.write("Pose une question liée à la catégorisation.")
 
-    question = st.text_area(
-        "Question",
-        placeholder="Ex: Dans quelle catégorie faut-il ranger les produits saisonniers à faible rotation ?",
-        height=150,
-        key="category_question",
-    )
+    question = st.text_area("Question", height=150)
 
     if st.button("Lancer Category Agent", use_container_width=True):
-        with st.spinner("Analyse en cours..."):
-            payload = run_category_agent(question)
-
+        payload = run_category_agent(question)
         render_result(payload)
 
 
 def page_rag() -> None:
     st.title("🧠 RAG Agent")
-    st.write("Pose une question au moteur RAG.")
 
-    question = st.text_area(
-        "Question RAG",
-        placeholder="Ex: Quels sont les risques de rupture sur la famille X ?",
-        height=150,
-        key="rag_question",
-    )
+    question = st.text_area("Question RAG", height=150)
 
     if st.button("Lancer RAG Agent", use_container_width=True):
-        with st.spinner("Recherche en cours..."):
-            payload = run_rag_agent(question)
-
+        payload = run_rag_agent(question)
         render_result(payload)
 
 
 def page_reallocation() -> None:
     st.title("🔄 Reallocation Agent")
-    st.write("Charge un fichier Excel pour la réallocation.")
 
-    uploaded_file = st.file_uploader(
-        "Importer un fichier Excel",
-        type=["xlsx", "xls"],
-        key="reallocation_file",
-    )
-
-    if uploaded_file is not None:
-        try:
-            df_preview = pd.read_excel(uploaded_file)
-            st.subheader("Aperçu du fichier")
-            st.dataframe(df_preview.head(20), use_container_width=True)
-            uploaded_file.seek(0)
-        except Exception as exc:
-            st.error(f"Impossible de lire le fichier : {exc}")
-            return
+    uploaded_file = st.file_uploader("Importer un fichier Excel")
 
     if st.button("Lancer Reallocation Agent", use_container_width=True):
-        if uploaded_file is None:
-            st.warning("Ajoute un fichier Excel.")
-            return
-
-        with st.spinner("Optimisation en cours..."):
-            payload = run_reallocation_agent(uploaded_file)
-
+        payload = run_reallocation_agent(uploaded_file)
         render_result(payload)
 
 
 def page_general() -> None:
     st.title("🧭 General / Supervisor")
-    st.write("Choisis quel agent lancer depuis le superviseur.")
 
     mode = st.selectbox(
         "Sélectionne un agent",
-        options=[
-            "inventory",
-            "category",
-            "rag",
-            "reallocation",
-        ],
-        index=0,
+        ["inventory", "category", "rag", "reallocation"],
     )
 
-    question = None
-    uploaded_file = None
-
-    if mode in ["inventory", "reallocation"]:
-        uploaded_file = st.file_uploader(
-            "Importer un fichier Excel",
-            type=["xlsx", "xls"],
-            key=f"general_file_{mode}",
-        )
-
-        if uploaded_file is not None:
-            try:
-                df_preview = pd.read_excel(uploaded_file)
-                st.subheader("Aperçu du fichier")
-                st.dataframe(df_preview.head(20), use_container_width=True)
-                uploaded_file.seek(0)
-            except Exception as exc:
-                st.error(f"Impossible de lire le fichier : {exc}")
-                return
-
-    if mode in ["category", "rag"]:
-        question = st.text_area(
-            "Question",
-            placeholder="Pose ta question ici...",
-            height=150,
-            key=f"general_question_{mode}",
-        )
+    question = st.text_area("Question")
+    uploaded_file = st.file_uploader("Fichier")
 
     if st.button("Lancer via Supervisor", use_container_width=True):
-        with st.spinner("Le supervisor traite la demande..."):
-            payload = run_supervisor(
-                mode=mode,
-                uploaded_file=uploaded_file,
-                question=question,
-            )
+        payload = run_supervisor(mode, uploaded_file, question)
         render_result(payload)
 
 
+# ============================================================
+# SIDEBAR
+# ============================================================
+
 def sidebar() -> str:
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio(
+    return st.sidebar.radio(
         "Choisis une vue",
         [
             "General / Supervisor",
@@ -225,20 +242,15 @@ def sidebar() -> str:
         ],
     )
 
-    st.sidebar.markdown("---")
-    st.sidebar.info(
-        "General / Supervisor route vers l’agent adapté.\n\n"
-        "Chaque agent peut aussi être utilisé séparément."
-    )
-    return page
 
+# ============================================================
+# MAIN
+# ============================================================
 
 def main() -> None:
     page = sidebar()
 
-    if page == "General / Supervisor":
-        page_general()
-    elif page == "Inventory Agent":
+    if page == "Inventory Agent":
         page_inventory()
     elif page == "Category Agent":
         page_category()
@@ -246,6 +258,8 @@ def main() -> None:
         page_rag()
     elif page == "Reallocation Agent":
         page_reallocation()
+    else:
+        page_general()
 
 
 if __name__ == "__main__":
