@@ -65,21 +65,26 @@ SUBCATEGORY_MAP = {
 }
 
 
+def _clean_str(value) -> str:
+    """Safe str+strip that never chokes on NaN/None/non-string values."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    return str(value).strip()
+
+
 def _classify_one(item_name: str, sub_category: str, existing_category: str) -> tuple:
     """
     Classifie un item. Retourne (category, confidence, reason).
     """
-    # Normaliser la catégorie existante
-    existing_norm = CATEGORY_NORMALIZATION.get(
-        existing_category.strip(),
-        existing_category.strip()
-    )
+    # Normaliser la catégorie existante (robuste aux valeurs manquantes/NaN)
+    existing_clean = _clean_str(existing_category)
+    existing_norm = CATEGORY_NORMALIZATION.get(existing_clean, existing_clean)
 
     # Étape 1 — catégorie existante valide ?
     if existing_norm in OFFICIAL_CATEGORIES:
         return (existing_norm, 1.0, f"Catégorie existante confirmée : '{existing_norm}'")
 
-    name_lower = str(item_name).lower().strip()
+    name_lower = _clean_str(item_name).lower()
 
     # Étape 2 — mots-clés sur le nom
     for category, patterns in KEYWORD_RULES.items():
@@ -89,7 +94,7 @@ def _classify_one(item_name: str, sub_category: str, existing_category: str) -> 
                 return (category, 0.85, f"Mot-clé détecté : '{match.group(0)}'")
 
     # Étape 3 — mapping sous-catégorie
-    sub_lower = str(sub_category).lower().strip()
+    sub_lower = _clean_str(sub_category).lower()
     if sub_lower in SUBCATEGORY_MAP:
         mapped = SUBCATEGORY_MAP[sub_lower]
         return (mapped, 0.70, f"Sous-catégorie mappée : '{sub_category}' → '{mapped}'")

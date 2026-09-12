@@ -40,73 +40,31 @@ def _exception_payload(exc: Exception) -> Dict[str, Any]:
 # ============================================================
 # INVENTORY AGENT
 # ============================================================
-def run_inventory_agent(uploaded_file) -> Dict[str, Any]:
-    """
-    Attend un Excel en entrée.
-    Essaie plusieurs patterns d'appel pour s'adapter à ton code existant.
-    """
+def run_inventory_agent(
+    uploaded_file,
+    target_coverage: float = 6.0,
+    use_soh_for_oos: bool = False,
+) -> Dict[str, Any]:
     try:
         df = _read_excel(uploaded_file)
 
-        # --- tentative 1 : fonction process_inventory(df)
-        try:
-            from src.agents.inventory_agent import process_inventory  # type: ignore
+        from src.agents.inventory_agent import process_inventory
 
-            result = process_inventory(df)
-            return {
-                "success": True,
-                "dataframe": df,
-                "result": result,
-                "agent": "inventory_agent",
-            }
-        except Exception:
-            pass
-
-        # --- tentative 2 : classe InventoryAgent avec run/analyze/process
-        try:
-            from src.agents.inventory_agent import InventoryAgent  # type: ignore
-
-            agent = InventoryAgent()
-
-            if hasattr(agent, "run"):
-                result = agent.run(df)
-            elif hasattr(agent, "analyze"):
-                result = agent.analyze(df)
-            elif hasattr(agent, "process"):
-                result = agent.process(df)
-            else:
-                raise AttributeError(
-                    "InventoryAgent existe mais n'a pas de méthode run/analyze/process."
-                )
-
-            return {
-                "success": True,
-                "dataframe": df,
-                "result": result,
-                "agent": "inventory_agent",
-            }
-        except Exception:
-            pass
-
-        # fallback
-        summary = {
-            "rows": len(df),
-            "columns": list(df.columns),
-            "missing_values": df.isna().sum().to_dict(),
-            "preview": df.head(10),
-        }
+        result = process_inventory(
+            df,
+            target_coverage=target_coverage,
+            use_soh_for_oos=use_soh_for_oos,
+        )
 
         return {
             "success": True,
             "dataframe": df,
-            "result": summary,
+            "result": result,
             "agent": "inventory_agent",
-            "warning": "Aucune fonction standard trouvée dans inventory_agent.py. Fallback utilisé.",
         }
 
     except Exception as exc:
         return _exception_payload(exc)
-
 
 # ============================================================
 # CATEGORY AGENT

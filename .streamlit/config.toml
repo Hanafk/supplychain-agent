@@ -1,0 +1,14 @@
+[theme]
+base = "dark"
+primaryColor = "#3B82F6"
+backgroundColor = "#07111F"
+secondaryBackgroundColor = "#0E1C31"
+textColor = "#F8FAFC"
+borderColor = "rgba(148, 163, 184, 0.20)"
+font = "sans-serif"
+baseRadius = "0.6rem"
+buttonRadius = "0.6rem"
+showWidgetBorder = false
+
+[client]
+toolbarMode = "minimal"
